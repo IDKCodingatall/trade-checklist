@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0a0a0a"/>
+<title>Signal Engine</title>
+<style>
+:root {
+  --bg:#0a0a0a;--surface:#141414;--surface2:#1c1c1c;--surface3:#222;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f0f0f0;--text2:#888;--text3:#444;
+  --green:#00c37a;--green-bg:rgba(0,195,122,0.1);--green-border:rgba(0,195,122,0.22);
+  --yellow:#f5a623;--yellow-bg:rgba(245,166,35,0.1);--yellow-border:rgba(245,166,35,0.22);
+  --red:#ff4d4d;--red-bg:rgba(255,77,77,0.1);--red-border:rgba(255,77,77,0.22);
+  --radius:14px;--radius-sm:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:15px;min-height:100vh}
+.header{padding:52px 20px 12px;display:flex;align-items:center;justify-content:space-between}
+.app-title{font-size:20px;font-weight:700;letter-spacing:-0.4px}
+.app-title span{color:var(--green)}
+.market-pill{font-size:11px;color:var(--text3);background:var(--surface);padding:4px 10px;border-radius:100px;border:1px solid var(--border)}
+.market-pill.open{color:var(--green);border-color:var(--green-border)}
+.tab-bar{display:flex;gap:3px;margin:0 16px 20px;background:var(--surface);border-radius:12px;padding:3px}
+.tab{flex:1;padding:7px 4px;font-size:12px;font-weight:500;text-align:center;border-radius:9px;cursor:pointer;color:var(--text3);border:none;background:none;transition:all .18s}
+.tab.active{background:var(--surface3);color:var(--text);border:1px solid var(--border2)}
+.view{padding:0 16px 80px;display:none}
+.view.active{display:block}
+.ticker-row{display:flex;gap:8px;margin-bottom:16px}
+.ticker-input{flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 14px;font-size:20px;font-weight:700;color:var(--text);letter-spacing:.08em;text-transform:uppercase;outline:none;transition:border .2s}
+.ticker-input:focus{border-color:var(--green)}
+.ticker-input::placeholder{text-transform:none;font-size:14px;font-weight:400;letter-spacing:0;color:var(--text3)}
+.fetch-btn{padding:12px 18px;background:var(--green);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;color:#000;cursor:pointer;transition:all .15s;white-space:nowrap}
+.fetch-btn:active{transform:scale(.96)}
+.fetch-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.sec-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;margin-top:20px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.empty-title{font-size:15px;font-weight:600;color:var(--text2);margin-bottom:5px}
+.empty-sub{font-size:13px;line-height:1.6}
+.loading-wrap{text-align:center;padding:50px 0}
+.spinner{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{font-size:13px;color:var(--text2)}
+.error-box{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--red);margin-bottom:14px}
+.flashcard{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.fc-header{padding:18px 18px 14px;border-bottom:1px solid var(--border)}
+.fc-ticker-row{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.fc-ticker{font-size:26px;font-weight:800;letter-spacing:-.5px}
+.fc-price{font-size:20px;font-weight:700}
+.fc-chg{font-size:13px;font-weight:600}
+.fc-chg.up{color:var(--green)}
+.fc-chg.down{color:var(--red)}
+.verdict-badge{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:100px;font-size:17px;font-weight:800;letter-spacing:.02em;margin-bottom:6px}
+.verdict-badge.go{background:var(--green-bg);color:var(--green);border:1.5px solid var(--green-border)}
+.verdict-badge.caution{background:var(--yellow-bg);color:var(--yellow);border:1.5px solid var(--yellow-border)}
+.verdict-badge.stop{background:var(--red-bg);color:var(--red);border:1.5px solid var(--red-border)}
+.verdict-dot{width:9px;height:9px;border-radius:50%;animation:pulse 1.5s infinite}
+.go .verdict-dot{background:var(--green)}
+.caution .verdict-dot{background:var(--yellow)}
+.stop .verdict-dot{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.verdict-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.tile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px}
+.tile{background:var(--surface2);border-radius:10px;padding:10px 10px 8px;border:1px solid var(--border)}
+.tile-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:5px}
+.tile-val{font-size:14px;font-weight:700;margin-bottom:2px}
+.tile-sub{font-size:10px;color:var(--text2);line-height:1.3}
+.tile.green{border-color:var(--green-border);background:var(--green-bg)}
+.tile.green .tile-val{color:var(--green)}
+.tile.yellow{border-color:var(--yellow-border);background:var(--yellow-bg)}
+.tile.yellow .tile-val{color:var(--yellow)}
+.tile.red{border-color:var(--red-border);background:var(--red-bg)}
+.tile.red .tile-val{color:var(--red)}
+.trade-section{padding:14px;border-top:1px solid var(--border)}
+.trade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.trade-cell{text-align:center}
+.trade-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:3px}
+.trade-val{font-size:14px;font-weight:700}
+.trade-val.green{color:var(--green)}
+.trade-val.red{color:var(--red)}
+.account-row{background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.account-label{color:var(--text2);font-size:12px}
+.account-val{font-weight:600}
+.risk-box{background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--red);line-height:1.5;margin-bottom:8px}
+.bear-box{background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--yellow);line-height:1.5;margin-bottom:8px}
+.violation-box{background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--red);line-height:1.6;margin-bottom:8px}
+.disclaimer{font-size:11px;color:var(--text3);text-align:center;padding:8px 14px 14px}
+.data-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.data-row{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--border);gap:10px}
+.data-row:last-child{border-bottom:none}
+.data-key{font-size:13px;color:var(--text2);flex-shrink:0}
+.data-val{font-size:13px;font-weight:600;text-align:right}
+.data-val.green{color:var(--green)}
+.data-val.yellow{color:var(--yellow)}
+.data-val.red{color:var(--red)}
+.pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.pill{font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px}
+.pill.sup{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.pill.res{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.analyst-bar{display:flex;height:6px;border-radius:100px;overflow:hidden;margin:6px 0 4px}
+.ab-buy{background:var(--green)}
+.ab-hold{background:var(--yellow)}
+.ab-sell{background:var(--red)}
+.upload-area{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.upload-area:active{border-color:var(--green);background:var(--green-bg)}
+.upload-icon{font-size:32px;margin-bottom:8px}
+.upload-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.upload-sub{font-size:12px;color:var(--text3)}
+.upload-preview{width:100%;border-radius:var(--radius-sm);margin-bottom:14px;display:none}
+.analyze-options-btn{width:100%;padding:14px;background:var(--green);border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;color:#000;cursor:pointer;transition:all .15s;margin-bottom:8px}
+.analyze-options-btn:disabled{opacity:.4;cursor:not-allowed}
+.tradier-pending{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:14px}
+.tradier-pending-title{font-size:14px;font-weight:600;margin-bottom:6px;color:var(--yellow)}
+.tradier-pending-sub{font-size:12px;color:var(--text3);line-height:1.6}
+.pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+.pick-btn{padding:10px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);cursor:pointer;text-align:center;transition:all .15s}
+.pick-btn.active{border-color:var(--green);background:var(--green-bg);color:var(--green);font-weight:600}
+.rules-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.rule-row{display:flex;gap:12px;align-items:flex-start;padding:13px 14px;border-bottom:1px solid var(--border)}
+.rule-row:last-child{border-bottom:none}
+.rule-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.rule-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.rule-sub{font-size:12px;color:var(--text3);line-height:1.4}
+.macro-row{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-bottom:1px solid var(--border)}
+.macro-row:last-child{border-bottom:none}
+.macro-pill{font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px;flex-shrink:0;margin-top:2px;white-space:nowrap}
+.macro-desc{font-size:12px;color:var(--text2);line-height:1.5}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-size:13px;font-weight:600;padding:9px 18px;border-radius:100px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="app-title">Signal<span>Engine</span></div>
+  <div class="market-pill" id="market-status">Loading...</div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="showTab('signal')" id="tab-signal">Signal</button>
+  <button class="tab" onclick="showTab('data')" id="tab-data">Data</button>
+  <button class="tab" onclick="showTab('options')" id="tab-options">Options</button>
+  <button class="tab" onclick="showTab('rules')" id="tab-rules">Rules</button>
+</div>
+
+<!-- SIGNAL TAB -->
+<div class="view active" id="view-signal">
+  <div class="ticker-row">
+    <input class="ticker-input" id="ticker" placeholder="Ticker — e.g. NVDA" maxlength="6" onkeydown="if(event.key==='Enter')fetchAndAnalyze()"/>
+    <button class="fetch-btn" id="fetch-btn" onclick="fetchAndAnalyze()">Analyze</button>
+  </div>
+  <div id="sig-error"></div>
+  <div class="sec-label">Strategy</div>
+  <div class="pick-grid" id="strat-grid">
+    <div class="pick-btn active" onclick="pick(this,'strat','Long call/put')">Long call / put</div>
+    <div class="pick-btn" onclick="pick(this,'strat','CSP')">CSP</div>
+    <div class="pick-btn" onclick="pick(this,'strat','Covered call')">Covered call</div>
+    <div class="pick-btn" onclick="pick(this,'strat','Buy & hold')">Buy &amp; hold</div>
+  </div>
+  <div class="sec-label">Account</div>
+  <div class="pick-grid" id="acct-grid">
+    <div class="pick-btn active" onclick="pick(this,'acct','RH Trading')">RH Trading</div>
+    <div class="pick-btn" onclick="pick(this,'acct','Fidelity IRA')">Fidelity IRA</div>
+    <div class="pick-btn" onclick="pick(this,'acct','Fidelity Roth IRA')">Roth IRA ⚠</div>
+    <div class="pick-btn" onclick="pick(this,'acct','RH Investing')">RH Investing</div>
+  </div>
+  <div id="sig-empty" class="empty-state">
+    <div class="empty-icon">⚡</div>
+    <div class="empty-title">Enter a ticker and tap Analyze</div>
+    <div class="empty-sub">Fetches live data, calculates all signals,<br/>and gets a Claude recommendation instantly.</div>
+  </div>
+  <div id="sig-loading" class="loading-wrap" style="display:none">
+    <div class="spinner"></div>
+    <div class="loading-msg" id="loading-msg">Fetching live data...</div>
+  </div>
+  <div id="sig-card" style="display:none"></div>
+</div>
+
+<!-- DATA TAB -->
+<div class="view" id="view-data">
+  <div id="data-empty" class="empty-state">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">No data loaded yet</div>
+    <div class="empty-sub">Run an analysis on the Signal tab first.</div>
+  </div>
+  <div id="data-content" style="display:none"></div>
+</div>
+
+<!-- OPTIONS TAB -->
+<div class="view" id="view-options">
+  <div class="tradier-pending">
+    <div class="tradier-pending-title">⏳ Live Options Chain — Pending</div>
+    <div class="tradier-pending-sub">Tradier account under review (1–3 days).<br/>Once approved add <strong>TRADIER_TOKEN</strong> to Vercel env vars — live chain activates automatically.</div>
+  </div>
+  <div class="sec-label">Analyze Robinhood Screenshot</div>
+  <div class="upload-area" onclick="document.getElementById('screenshot-input').click()">
+    <div class="upload-icon">📸</div>
+    <div class="upload-title">Upload Options Chain Screenshot</div>
+    <div class="upload-sub">Screenshot your Robinhood options chain, tap to upload.<br/>Claude reads the strikes and suggests the best one.</div>
+  </div>
+  <input type="file" id="screenshot-input" accept="image/*" style="display:none" onchange="handleScreenshot(event)"/>
+  <img id="upload-preview" class="upload-preview"/>
+  <div class="sec-label">Strategy</div>
+  <div class="pick-grid" id="opt-strat-grid">
+    <div class="pick-btn active" onclick="pick(this,'opt-strat','Long call/put')">Long call / put</div>
+    <div class="pick-btn" onclick="pick(this,'opt-strat','CSP')">CSP</div>
+    <div class="pick-btn" onclick="pick(this,'opt-strat','Covered call')">Covered call</div>
+    <div class="pick-btn" onclick="pick(this,'opt-strat','Debit spread')">Debit spread</div>
+  </div>
+  <div class="sec-label">Account</div>
+  <div class="pick-grid" id="opt-acct-grid">
+    <div class="pick-btn active" onclick="pick(this,'opt-acct','RH Trading')">RH Trading</div>
+    <div class="pick-btn" onclick="pick(this,'opt-acct','Fidelity IRA')">Fidelity IRA</div>
+    <div class="pick-btn" onclick="pick(this,'opt-acct','Fidelity Roth IRA')">Roth IRA ⚠</div>
+    <div class="pick-btn" onclick="pick(this,'opt-acct','RH Investing')">RH Investing</div>
+  </div>
+  <button class="analyze-options-btn" id="opt-analyze-btn" onclick="analyzeScreenshot()" disabled>Analyze Screenshot with Claude</button>
+  <div id="opt-loading" class="loading-wrap" style="display:none">
+    <div class="spinner"></div>
+    <div class="loading-msg">Claude is reading the options chain...</div>
+  </div>
+  <div id="opt-result"></div>
+</div>
+
+<!-- RULES TAB -->
+<div class="view" id="view-rules">
+  <div class="sec-label">Core protocol</div>
+  <div class="rules-card">
+    <div class="rule-row"><div class="rule-dot" style="background:var(--green)"></div><div><div class="rule-title">DTE: 60–90 days at entry</div><div class="rule-sub">Never enter closer than 30 DTE — theta decay accelerates fast</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--green)"></div><div><div class="rule-title">Take profit: 50% of premium</div><div class="rule-sub">Close and redeploy — don't hold for the last dollar</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--green)"></div><div><div class="rule-title">Stop loss: 2× premium paid</div><div class="rule-sub">Paid $200? Exit at $400 loss — no exceptions</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--green)"></div><div><div class="rule-title">Volume ratio below 0.7 = skip</div><div class="rule-sub">Low volume breakouts are traps — wait for confirmation</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--red)"></div><div><div class="rule-title">No options within 21 days of earnings</div><div class="rule-sub">IV crush will destroy premium — enter post-earnings</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--red)"></div><div><div class="rule-title">No feel-based trades</div><div class="rule-sub">If you can't point to data — don't enter</div></div></div>
+  </div>
+  <div class="sec-label">Account sizing</div>
+  <div class="rules-card">
+    <div class="rule-row"><div class="rule-dot" style="background:var(--green)"></div><div><div class="rule-title">RH Trading — $50K</div><div class="rule-sub">Max $1,000/trade (2%). Goal $1K/week. Naked long options only.</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--green)"></div><div><div class="rule-title">Fidelity IRA — $240K</div><div class="rule-sub">Max $4,800/trade (2%). Growth sleeve: robotics, space, AI.</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--yellow)"></div><div><div class="rule-title">Fidelity Roth IRA — $7K ⚠</div><div class="rule-sub">Flag any contract over $700 (10%). Extreme caution always.</div></div></div>
+    <div class="rule-row"><div class="rule-dot" style="background:var(--text3)"></div><div><div class="rule-title">RH Investing — $100K</div><div class="rule-sub">Long-term equity only. No options. No exceptions.</div></div></div>
+  </div>
+  <div class="sec-label">Macro color system</div>
+  <div class="rules-card">
+    <div class="macro-row"><div class="macro-pill" style="background:var(--green-bg);color:var(--green)">Green</div><div class="macro-desc">VIX below 20, SPY uptrend, Fed neutral/easing. Full size allowed.</div></div>
+    <div class="macro-row"><div class="macro-pill" style="background:var(--yellow-bg);color:var(--yellow)">Yellow</div><div class="macro-desc">VIX 20–30, mixed signals. Cut size 50%. Favor selling premium.</div></div>
+    <div class="macro-row"><div class="macro-pill" style="background:var(--red-bg);color:var(--red)">Red</div><div class="macro-desc">VIX above 30, downtrend. No new positions. Protect existing.</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PROXY='';
+let liveData=null;
+let selectedStrat='Long call/put';
+let selectedAcct='RH Trading';
+let selectedOptStrat='Long call/put';
+let selectedOptAcct='RH Trading';
+let screenshotB64=null;
+
+function pick(el,type,val){
+  const ids={strat:'strat-grid',acct:'acct-grid','opt-strat':'opt-strat-grid','opt-acct':'opt-acct-grid'};
+  document.querySelectorAll('#'+ids[type]+' .pick-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(type==='strat')selectedStrat=val;
+  else if(type==='acct')selectedAcct=val;
+  else if(type==='opt-strat')selectedOptStrat=val;
+  else selectedOptAcct=val;
+}
+
+async function fetchAndAnalyze(){
+  const ticker=document.getElementById('ticker').value.trim().toUpperCase();
+  if(!ticker)return;
+  const btn=document.getElementById('fetch-btn');
+  btn.disabled=true;btn.textContent='...';
+  document.getElementById('sig-error').innerHTML='';
+  document.getElementById('sig-empty').style.display='none';
+  document.getElementById('sig-card').style.display='none';
+  document.getElementById('sig-loading').style.display='block';
+  setMsg('Fetching live data...');
+  try{
+    const mRes=await fetch(`${PROXY}/api/market?symbol=${ticker}`);
+    if(!mRes.ok)throw new Error('Market data failed');
+    const mData=await mRes.json();
+    if(mData.error)throw new Error(mData.error);
+    liveData=mData;
+    buildDataTab(mData);
+    setMsg('Claude is analyzing...');
+    const aRes=await fetch(`${PROXY}/api/analyze`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({marketData:mData,account:selectedAcct,strategy:selectedStrat})
+    });
+    const analysis=await aRes.json();
+    document.getElementById('sig-loading').style.display='none';
+    document.getElementById('sig-card').style.display='block';
+    if(analysis.error&&!analysis.raw)throw new Error(analysis.error);
+    renderFlashcard(mData,analysis);
+  }catch(e){
+    document.getElementById('sig-loading').style.display='none';
+    document.getElementById('sig-empty').style.display='block';
+    document.getElementById('sig-error').innerHTML=`<div class="error-box">${e.message}</div>`;
+  }
+  btn.disabled=false;btn.textContent='Analyze';
+}
+
+function setMsg(m){document.getElementById('loading-msg').textContent=m;}
+
+function renderFlashcard(m,a){
+  const vc=a.verdict==='GO'?'go':a.verdict==='CAUTION'?'caution':'stop';
+  const ve=a.verdict==='GO'?'🟢':a.verdict==='CAUTION'?'🟡':'🔴';
+  const chg=m.change_pct||0;
+  const chgC=chg>=0?'up':'down';
+  const chgS=(chg>=0?'+':'')+chg.toFixed(2)+'%';
+  if(a.parse_error){
+    document.getElementById('sig-card').innerHTML=`<div class="flashcard"><div class="fc-header"><div class="fc-ticker-row"><span class="fc-ticker">${m.symbol}</span><span class="fc-price">$${m.price?.toFixed(2)}</span><span class="fc-chg ${chgC}">${chgS}</span></div></div><div style="padding:14px;font-size:13px;color:var(--text2);white-space:pre-wrap;line-height:1.6">${a.raw}</div></div>`;
+    return;
+  }
+  const mc=a.macro_color==='Green'?'green':a.macro_color==='Yellow'?'yellow':'red';
+  const emaTrend=m.price>m.ema50&&m.price>m.ema200?'Bullish':m.price<m.ema50&&m.price<m.ema200?'Bearish':'Mixed';
+  const emaC=m.price>m.ema50&&m.price>m.ema200?'green':m.price<m.ema50&&m.price<m.ema200?'red':'yellow';
+  const volC=m.volume_ratio>=1.5?'green':m.volume_ratio<0.7?'red':'';
+  const volS=m.volume_ratio>=1.5?'Confirms ✓':m.volume_ratio<0.7?'Weak ⚠':'Normal';
+  const rsiC=m.rsi>=70?'red':m.rsi<=30?'green':'';
+  const macdC=m.macd?.bias==='bullish'?'green':'red';
+  const tiles=[
+    {label:'RSI',val:m.rsi?.toFixed(1),sub:m.rsi>=70?'Overbought ⚠':m.rsi<=30?'Oversold':'Neutral',color:rsiC},
+    {label:'MACD',val:m.macd?.bias?.toUpperCase(),sub:'Hist '+m.macd?.histogram?.toFixed(3),color:macdC},
+    {label:'Volume',val:(m.volume_ratio||0)+'x',sub:volS,color:volC},
+    {label:'EMA Trend',val:emaTrend,sub:'50: $'+m.ema50?.toFixed(0),color:emaC},
+    {label:'Macro',val:a.macro_color||'N/A',sub:'VIX '+m.vix?.toFixed(1),color:mc},
+    {label:'Earnings',val:earnDays(m.earnings_date),sub:(a.earnings_risk||'').split('—')[0].trim(),color:earnColor(m.earnings_date)},
+  ];
+  const tilesHTML=tiles.map(t=>`<div class="tile ${t.color}"><div class="tile-label">${t.label}</div><div class="tile-val">${t.val}</div><div class="tile-sub">${t.sub}</div></div>`).join('');
+  const violations=a.protocol_violations?.length?`<div class="violation-box">⚠ Protocol: ${a.protocol_violations.join(' · ')}</div>`:'';
+  const strikeRow=a.strike_suggestion?`<div class="account-row"><span class="account-label">Strike / Expiry</span><span class="account-val">${a.strike_suggestion}</span></div>`:'';
+  document.getElementById('sig-card').innerHTML=`
+<div class="flashcard">
+  <div class="fc-header">
+    <div class="fc-ticker-row">
+      <span class="fc-ticker">${m.symbol}</span>
+      <span class="fc-price">$${m.price?.toFixed(2)}</span>
+      <span class="fc-chg ${chgC}">${chgS}</span>
+    </div>
+    <div class="verdict-badge ${vc}"><span class="verdict-dot"></span>${ve} ${a.verdict} — ${a.signal} · ${a.bias}</div>
+    <div class="verdict-sub">${m.symbol} · ${selectedAcct} · ${selectedStrat}</div>
+  </div>
+  <div class="tile-grid">${tilesHTML}</div>
+  <div class="trade-section">
+    <div class="trade-grid">
+      <div class="trade-cell"><div class="trade-label">Entry</div><div class="trade-val">${a.entry_zone||'—'}</div></div>
+      <div class="trade-cell"><div class="trade-label">Target</div><div class="trade-val green">${a.target||'—'}</div></div>
+      <div class="trade-cell"><div class="trade-label">Stop</div><div class="trade-val red">${a.stop||'—'}</div></div>
+    </div>
+    <div class="account-row"><span class="account-label">Account</span><span class="account-val">${a.account||selectedAcct}</span></div>
+    <div class="account-row"><span class="account-label">Size</span><span class="account-val">${a.contracts||'—'}</span></div>
+    ${strikeRow}
+    <div class="risk-box">⚠ ${a.top_risk||'—'}</div>
+    <div class="bear-box">🐻 ${a.bear_case||'—'}</div>
+    ${violations}
+    <div class="disclaimer">${a.disclaimer||'Verify before executing. Not financial advice.'}</div>
+  </div>
+</div>`;
+}
+
+function buildDataTab(m){
+  const e50=m.price>m.ema50,e200=m.price>m.ema200;
+  const ed=m.earnings_date?Math.round((new Date(m.earnings_date)-new Date())/86400000):null;
+  const resPills=(m.resistance||[]).map(p=>`<span class="pill res">$${p}</span>`).join('');
+  const supPills=(m.support||[]).map(p=>`<span class="pill sup">$${p}</span>`).join('');
+  const tot=m.analyst_total||1;
+  const bp=Math.round((m.analyst_buy||0)/tot*100);
+  const hp=Math.round((m.analyst_hold||0)/tot*100);
+  const sp=100-bp-hp;
+  document.getElementById('data-empty').style.display='none';
+  document.getElementById('data-content').style.display='block';
+  document.getElementById('data-content').innerHTML=`
+<div class="sec-label">Price &amp; momentum</div>
+<div class="data-card">
+  <div class="data-row"><span class="data-key">Price</span><span class="data-val">$${m.price?.toFixed(2)} <span class="${m.change_pct>=0?'green':'red'}">${m.change_pct>=0?'+':''}${m.change_pct?.toFixed(2)}%</span></span></div>
+  <div class="data-row"><span class="data-key">RSI (14)</span><span class="data-val ${m.rsi>=70?'red':m.rsi<=30?'green':''}">${m.rsi?.toFixed(1)} — ${m.rsi>=70?'Overbought ⚠':m.rsi<=30?'Oversold':'Neutral'}</span></div>
+  <div class="data-row"><span class="data-key">MACD</span><span class="data-val ${m.macd?.bias==='bullish'?'green':'red'}">${m.macd?.bias?.toUpperCase()} · Hist ${m.macd?.histogram?.toFixed(3)}</span></div>
+  <div class="data-row"><span class="data-key">EMA 50</span><span class="data-val ${e50?'green':'red'}">$${m.ema50?.toFixed(2)} — ${e50?'Above ✓':'Below ⚠'}</span></div>
+  <div class="data-row"><span class="data-key">EMA 200</span><span class="data-val ${e200?'green':'red'}">$${m.ema200?.toFixed(2)} — ${e200?'Bullish long-term':'Bearish long-term'}</span></div>
+</div>
+<div class="sec-label">Volume</div>
+<div class="data-card">
+  <div class="data-row"><span class="data-key">Today</span><span class="data-val">${(m.volume_today||0).toLocaleString()}</span></div>
+  <div class="data-row"><span class="data-key">20-day avg</span><span class="data-val">${(m.volume_avg20||0).toLocaleString()}</span></div>
+  <div class="data-row"><span class="data-key">Ratio</span><span class="data-val ${m.volume_ratio>=1.5?'green':m.volume_ratio<0.7?'red':''}">${m.volume_ratio}x — ${m.volume_ratio>=1.5?'High — confirms move ✓':m.volume_ratio<0.7?'Low — do not trust breakout ⚠':'Normal'}</span></div>
+</div>
+<div class="sec-label">Support &amp; Resistance (calculated)</div>
+<div class="data-card">
+  <div class="data-row"><span class="data-key">Resistance</span><span class="data-val"><div class="pill-row">${resPills||'<span style="color:var(--text3);font-size:12px">None detected</span>'}</div></span></div>
+  <div class="data-row"><span class="data-key">Support</span><span class="data-val"><div class="pill-row">${supPills||'<span style="color:var(--text3);font-size:12px">None detected</span>'}</div></span></div>
+</div>
+<div class="sec-label">Market context</div>
+<div class="data-card">
+  <div class="data-row"><span class="data-key">VIX</span><span class="data-val ${m.vix<20?'green':m.vix<30?'yellow':'red'}">${m.vix?.toFixed(1)} — ${m.vix<20?'Green macro':m.vix<30?'Yellow — caution':'Red — no new trades'}</span></div>
+  <div class="data-row"><span class="data-key">SPY</span><span class="data-val ${m.spy_price>m.spy_ema50?'green':'red'}">$${m.spy_price?.toFixed(2)} — ${m.spy_price>m.spy_ema50?'Uptrend ✓':'Below EMA50 ⚠'}</span></div>
+  <div class="data-row"><span class="data-key">Sector (${m.sector_etf})</span><span class="data-val ${m.sector_price>m.sector_ema50?'green':'red'}">$${m.sector_price?.toFixed(2)} — ${m.sector_price>m.sector_ema50?'Bullish ✓':'Bearish ⚠'}</span></div>
+  <div class="data-row"><span class="data-key">Earnings</span><span class="data-val ${earnColor(m.earnings_date)}">${ed!==null?(ed>0?ed+' days ('+m.earnings_date+')':'Past: '+m.earnings_date):'No data'}</span></div>
+</div>
+<div class="sec-label">Analyst consensus</div>
+<div class="data-card">
+  <div class="data-row" style="flex-direction:column;gap:8px">
+    <div style="display:flex;justify-content:space-between;font-size:12px">
+      <span style="color:var(--green)">Buy ${m.analyst_buy||0}</span>
+      <span style="color:var(--yellow)">Hold ${m.analyst_hold||0}</span>
+      <span style="color:var(--red)">Sell ${m.analyst_sell||0}</span>
+    </div>
+    <div class="analyst-bar"><div class="ab-buy" style="width:${bp}%"></div><div class="ab-hold" style="width:${hp}%"></div><div class="ab-sell" style="width:${sp}%"></div></div>
+    <div style="font-size:12px;color:var(--text2)">${m.analyst_buy_pct!==null?m.analyst_buy_pct+'% analysts bullish':'No analyst data'}</div>
+  </div>
+</div>
+<div class="sec-label">52-week range</div>
+<div class="data-card">
+  <div class="data-row"><span class="data-key">Low</span><span class="data-val red">$${m.fh_52w_low||'—'}</span></div>
+  <div class="data-row"><span class="data-key">High</span><span class="data-val green">$${m.fh_52w_high||'—'}</span></div>
+  <div class="data-row"><span class="data-key">Current vs High</span><span class="data-val">${m.fh_52w_high?Math.round((m.price/m.fh_52w_high)*100)+'% of 52w high':'—'}</span></div>
+</div>`;
+}
+
+function handleScreenshot(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    const dataUrl=e.target.result;
+    screenshotB64=dataUrl.split(',')[1];
+    const prev=document.getElementById('upload-preview');
+    prev.src=dataUrl;prev.style.display='block';
+    document.getElementById('opt-analyze-btn').disabled=false;
+    showToast('Screenshot loaded ✓');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzeScreenshot(){
+  if(!screenshotB64)return;
+  const btn=document.getElementById('opt-analyze-btn');
+  btn.disabled=true;
+  document.getElementById('opt-loading').style.display='block';
+  document.getElementById('opt-result').innerHTML='';
+  try{
+    const res=await fetch(`${PROXY}/api/analyze`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({marketData:liveData||{symbol:'UNKNOWN',price:0},account:selectedOptAcct,strategy:selectedOptStrat,screenshotBase64:screenshotB64})
+    });
+    const data=await res.json();
+    document.getElementById('opt-loading').style.display='none';
+    renderOptionsResult(data);
+  }catch(e){
+    document.getElementById('opt-loading').style.display='none';
+    document.getElementById('opt-result').innerHTML=`<div class="error-box">${e.message}</div>`;
+  }
+  btn.disabled=false;
+}
+
+function renderOptionsResult(a){
+  if(a.error){document.getElementById('opt-result').innerHTML=`<div class="error-box">${a.error}</div>`;return;}
+  const vc=a.verdict==='GO'?'go':a.verdict==='CAUTION'?'caution':'stop';
+  const ve=a.verdict==='GO'?'🟢':a.verdict==='CAUTION'?'🟡':'🔴';
+  document.getElementById('opt-result').innerHTML=`
+<div class="flashcard">
+  <div class="fc-header">
+    <div class="verdict-badge ${vc}"><span class="verdict-dot"></span>${ve} ${a.verdict} — ${a.bias}</div>
+  </div>
+  <div class="trade-section">
+    ${a.strike_suggestion?`<div class="account-row"><span class="account-label">Strike / Expiry</span><span class="account-val">${a.strike_suggestion}</span></div>`:''}
+    <div class="account-row"><span class="account-label">Entry</span><span class="account-val">${a.entry_zone||'—'}</span></div>
+    <div class="account-row"><span class="account-label">Target</span><span class="account-val" style="color:var(--green)">${a.target||'—'}</span></div>
+    <div class="account-row"><span class="account-label">Stop</span><span class="account-val" style="color:var(--red)">${a.stop||'—'}</span></div>
+    <div class="account-row"><span class="account-label">Size</span><span class="account-val">${a.contracts||'—'}</span></div>
+    <div class="risk-box">⚠ ${a.top_risk||'—'}</div>
+    <div class="bear-box">🐻 ${a.bear_case||'—'}</div>
+    <div class="disclaimer">${a.disclaimer||'Verify before executing. Not financial advice.'}</div>
+  </div>
+</div>`;
+}
+
+function earnDays(date){if(!date)return'N/A';const d=Math.round((new Date(date)-new Date())/86400000);return d>0?d+'d':'Past';}
+function earnColor(date){if(!date)return'';const d=Math.round((new Date(date)-new Date())/86400000);return d>0&&d<=14?'red':d>0&&d<=21?'yellow':'green';}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+function showTab(name){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('view-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');}
+function setMarketStatus(){const now=new Date();const et=new Date(now.toLocaleString('en-US',{timeZone:'America/New_York'}));const h=et.getHours(),m=et.getMinutes(),day=et.getDay();const el=document.getElementById('market-status');const mins=h*60+m;if(day>=1&&day<=5&&mins>=570&&mins<960){el.textContent='Market open';el.classList.add('open');}else if(day>=1&&day<=5&&((mins>=240&&mins<570)||(mins>=960&&mins<1200))){el.textContent='Pre/after hours';el.classList.remove('open');}else{el.textContent='Market closed';el.classList.remove('open');}}
+setMarketStatus();
+</script>
+</body>
+</html>
