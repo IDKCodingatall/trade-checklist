@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "api/market.js": { "runtime": "nodejs20.x" },
+    "api/analyze.js": { "runtime": "nodejs20.x" }
+  }
+}
